@@ -1,0 +1,115 @@
+import numpy as np
+import matplotlib.pyplot as plt 
+from scipy.integrate import solve_ivp
+
+
+# Constants
+delta_in_meV = 19.1     # meV
+hbar = 1.05457E-34      # J*s
+d = 8.241E-9            # m
+e = 1.60218E-19         # C
+F = 10E5                # N/C (= 1000 V/cm)
+tau = 6.7E-13           # s
+
+
+# Derived constants
+delta = delta_in_meV * 1.602E-22  # J
+
+a = delta / (2 * e * F)  # amplitude 
+omega = e * F * d / hbar     # frequency
+T = 2 * np.pi / omega        # period
+
+# Define time domain for 5 cycles
+num_cycles = 5
+t = np.linspace(0, num_cycles * T, 2000) 
+
+# Define x(t) 
+x_an = - a * (np.cos(omega * t) - 1) 
+init_x = delta / (2 * e * F) * ( 1 - np.cos(e*F*d/hbar * 0))
+print("Initial x value =", init_x)
+
+#Normalised x 
+t_norm_an = t / tau
+x_norm_an = ( delta / (2*e*F*d) ) * ( 1 - np.cos(e*F*d*tau/hbar * t_norm_an))
+
+#Momentum
+p_an = e*F*t
+p_norm_an = e*F*tau*d/hbar * t_norm_an
+
+# Print numerical info
+print("Amplitude a =", a)
+print("Bloch frequency ω =", omega)
+print("Period T =", T)
+
+# -------------------------------------------------------------------------
+#Using ivp solver
+p_norm = d * tau * e * F / hbar
+
+def system(t, n): 
+    x, p = n 
+    dxdt_norm = delta*tau/(2*hbar) * np.sin(p)
+    dpdt_norm = d * tau * e * F / hbar
+    return [dxdt_norm, dpdt_norm]
+
+
+# Period of oscillation in p
+T_norm = 2 * np.pi / p_norm   # 1 oscillation
+t_end = 5 * T_norm            # 5 oscillations
+
+print("One oscillation period numerical:", T, "s")
+
+#Initial conditions to set
+t_0 = 0
+t_end = 5*T_norm
+steps = 70
+initial_x = 0
+initial_p = 0
+
+
+y0 = [initial_x, initial_p] 
+sol = solve_ivp(system, (t_0, t_end), y0, method='RK45', 
+                t_eval=np.linspace(t_0, t_end, steps))
+
+
+# PLOTTING --------------------------------------------------------------
+
+#Real values x plot (not normalised)
+plt.plot(t, x_an, label='Analytical solution')
+plt.scatter(sol.t*tau, sol.y[0]*d, label='Numerical solution', color='r')
+plt.title("Real Value Particle Movement")
+plt.xlabel("Time (seconds)")
+plt.ylabel("Position in x (meters)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Normalised x plot 
+plt.plot(t_norm_an, x_norm_an, label='Analytical solution')
+plt.scatter(sol.t, sol.y[0], label='Numerical solution', color='r')
+plt.title("Normalised Particle Movement")
+plt.xlabel("Time (normalised)")
+plt.ylabel("Position in x (normalised)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Real values p plot (not normalised)
+plt.plot(t, p_an, label='Analytical solution')
+plt.scatter(sol.t*tau, sol.y[1]*hbar/d, label='Numerical solution', color='r')
+plt.title("Real Value Momentum")
+plt.xlabel("Time (seconds)")
+plt.ylabel("Momentum (Newtons)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Normalised p plot 
+plt.plot(t_norm_an, p_norm_an, label='Analytical solution')
+plt.scatter(sol.t, sol.y[1], label='Numerical solution', color='r')
+plt.title("Normalised Momentum")
+plt.xlabel("Time (normalised)")
+plt.ylabel("Momentum (normalised)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
