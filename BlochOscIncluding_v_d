@@ -1,0 +1,194 @@
+import numpy as np
+import matplotlib.pyplot as plt 
+from scipy.integrate import solve_ivp
+from scipy.integrate import quad
+
+
+# Constants
+delta_in_meV = 19.1     # meV
+hbar = 1.05457E-34      # J*s
+d = 8.241E-9            # m
+e = 1.60218E-19         # C
+F = 10**6               # N/C or V/m (=1000 V/cm)
+tau = 6.7E-13           # s
+print("F =", F)
+
+# Derived constants
+delta = delta_in_meV * 1.602E-22  # J
+
+a = delta / (2 * e * F)  # amplitude 
+omega = e * F * d / hbar     # frequency
+T = 2 * np.pi / omega        # period
+
+# Define time domain for 5 cycles
+num_cycles = 5
+t = np.linspace(0, num_cycles * T, 2000) 
+
+# Define x(t) 
+x_an = - a * (np.cos(omega * t) - 1) 
+
+#Normalised x 
+t_norm_an = t / tau
+x_norm_an = ( delta / (2*e*F*d) ) * ( 1 - np.cos(e*F*d*tau/hbar * t_norm_an))
+
+#Momentum
+p_an = e*F*t
+p_norm_an = e*F*tau*d/hbar * t_norm_an
+
+# Print numerical info
+# print("Amplitude a =", a)
+# print("Bloch frequency ω =", omega)
+# print("Period T =", T)
+
+
+#-----------------------------------------------------------------------------
+#Numerical solution using ivp solver with Runge-Kutta 8th order
+p_norm = d * tau * e * F / hbar
+
+def system(t, n): 
+    x, p, vd = n 
+    dxdt_norm = delta*tau/(2*hbar) * np.sin(p)
+    dpdt_norm = d * tau * e * F / hbar
+    v_d_int = np.sin(e*F*d*tau*(t) /hbar)*np.e**(-t)
+    return [dxdt_norm, dpdt_norm, v_d_int]
+
+# Period of oscillation in p
+T_norm = 2 * np.pi / p_norm   # 1 oscillation
+t_end = 5 * T_norm            # 5 oscillations
+
+print("One oscillation period numerical:", T, "s")
+
+#Initial conditions to set 
+t_0 = 0
+t_end =  10        #5*T_norm       #for 5 oscillations
+steps = 100
+initial_x = 0
+initial_p = 0
+initial_vd = 0
+
+# print("10 tau =", 10*tau)
+# print("5 osc =", 5*T_norm * tau)
+# print("10 tau =", 10/T_norm ,"periods." )
+
+
+y0 = [initial_x, initial_p, initial_vd] 
+sol = solve_ivp(system, (t_0, t_end), y0, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+#print(sol.t)
+#print("t_end =", t_end)
+time_step_norm = t_end/(steps-1)
+time_step_real = t_end*tau/(steps-1)
+print("Time step norm =", time_step_norm)
+print("Time step real (sec) = ", time_step_real)
+#print("v_d norm =", sol.y[2])
+# print("t norm =", sol.t)
+# print("v_d real values (m/s) =", sol.y[2]*delta*d/(2*hbar))
+
+# last_real_vd = sol.y[2][-1]*delta*d/(2*hbar)
+# print("last =", last_real_vd)
+
+
+# PLOTTING x AND p --------------------------------------------------------------
+
+#Real values x plot (not normalised)
+plt.plot(t, x_an, label='Analytical solution')
+plt.scatter(sol.t*tau, sol.y[0]*d, label='Numerical solution', color='r')
+plt.title("Real Value Particle Movement")
+plt.xlabel("Time (seconds)")
+plt.ylabel("Position in x (meters)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Normalised x plot 
+plt.plot(t_norm_an, x_norm_an, label='Analytical solution')
+plt.scatter(sol.t, sol.y[0], label='Numerical solution', color='r')
+plt.title("Normalised Particle Movement")
+plt.xlabel("Time (normalised)")
+plt.ylabel("Position in x (normalised)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Real values p plot (not normalised)
+plt.plot(t, p_an, label='Analytical solution')
+plt.scatter(sol.t*tau, sol.y[1]*hbar/d, label='Numerical solution', color='r')
+plt.title("Real Value Momentum")
+plt.xlabel("Time (seconds)")
+plt.ylabel("Momentum (Newtons)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Normalised p plot 
+plt.plot(t_norm_an, p_norm_an, label='Analytical solution')
+plt.scatter(sol.t, sol.y[1], label='Numerical solution', color='r')
+plt.title("Normalised Momentum")
+plt.xlabel("Time (normalised)")
+plt.ylabel("Momentum (normalised)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#________________________________________________________________________
+
+#BEGIN v_d CALCULATIONS --------------------------------------------------
+
+
+# Loop for solving vd at different F values
+
+f_range = np.linspace(0, 1e6, 1000)
+vd_array = []
+f_array = []
+
+for f in f_range:
+
+    def vd(t, vd):
+        v_d_int1 = np.sin(e*f*d*tau*(t) /hbar)*np.e**(-t)
+        return [v_d_int1]
+
+    vd0 = [initial_vd]
+
+    sol_vd = solve_ivp(vd, (t_0, t_end), vd0, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+    tot_int_vd_real = sol_vd.y[0][-1]*delta*d/(2*hbar)
+
+    vd_array.append(tot_int_vd_real)
+    f_array.append(f)
+
+#print("f_array =", f_array)
+
+#Drift velocity analytical ---------------------------------------------
+
+omegaB = e*F*d / hbar
+
+v_d_an = delta*d/(2*hbar) * omegaB * tau / (1 + omegaB**2 * tau**2)
+print("v_d_an =", v_d_an)
+v_d_norm_an = omegaB * tau / (1 + omegaB**2 * tau**2)
+
+
+# PLOTTING v_d -------------------------------------------------------------
+
+#Real values vd plot
+omegaB_num = np.multiply(f_array, e*d / hbar)
+
+#plt.plot(omegaB, v_d_an, label='Analytical solution')
+plt.plot(omegaB_num, vd_array, label='Numerical solution', color='r')
+plt.xlabel("omega_B (Hz)")
+plt.ylabel("v_d (m/s)")
+plt.title("Drift Velocity Real Values")
+plt.grid(True)
+plt.show()
+
+
+#Normalised vd plot
+vd_array_norm = np.multiply(vd_array, (2*hbar)/(delta*d))
+omega_B_num_norm = omegaB_num * tau
+
+plt.plot(omega_B_num_norm, vd_array_norm, label='Numerical solution', color='r')
+plt.xlabel("omega_B (normalised)")
+plt.ylabel("v_d (normalised)")
+plt.title("Drift Velocity Normalised")
+plt.grid(True)
+# plt.show()
+
