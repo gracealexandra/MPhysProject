@@ -135,7 +135,7 @@ plt.show()
 
 # Loop for solving vd at different F values
 
-f_range = np.linspace(0, 1e6, 1000)
+f_range = np.linspace(0, 1e6, 1001)
 vd_array = []
 f_array = []
 
