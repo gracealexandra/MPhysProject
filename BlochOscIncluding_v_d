@@ -10,7 +10,6 @@ d = 8.241E-9            # m
 e = 1.60218E-19         # C
 F = 10**6               # N/C or V/m (=1000 V/cm)
 tau = 6.7E-13           # s
-print("F =", F)
 
 # Derived constants
 delta = delta_in_meV * 1.602E-22  # J
