@@ -148,7 +148,7 @@ for f in f_range:
     vd0 = [initial_vd]
 
     sol_vd = solve_ivp(vd, (t_0, t_end), vd0, method='DOP853', 
-                t_eval=np.linspace(t_0, t_end, steps))
+                t_eval=np.linspace(t_0, t_end, steps), atol=1e-6)
     tot_int_vd_real = sol_vd.y[0][-1]*delta*d/(2*hbar)
 
     vd_array.append(tot_int_vd_real)
