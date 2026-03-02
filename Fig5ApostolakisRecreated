@@ -1,0 +1,148 @@
+import numpy as np
+import matplotlib.pyplot as plt 
+from scipy.integrate import solve_ivp
+
+
+# Constants
+delta_in_meV = 7          # meV
+hbar = 1.05457E-34        # J*s
+d = 12.5E-9               # m
+omega_s = 4E11            # rad/sec
+# e = 1.60218E-19         # C
+# F = 10**6               # N/C or V/m (=1000 V/cm)
+# tau = 6.7E-13           # s
+
+delta = delta_in_meV * 1.602E-22  # J
+v0 = delta * d / (2*hbar)
+vs = 5000 # m/s
+ks = omega_s/vs
+
+# U_in_meV = 1.5       # meV
+# U = U_in_meV * 1.602E-22  # J
+
+def fig5(t, n): 
+    x_norm, p_norm, U_in_meV = n 
+    U = U_in_meV * 1.602E-22  # J
+    dxdt_norm = (v0 / vs) * np.sin(p_norm) - 1
+    dpdt_norm = U*d / (hbar * vs) * np.cos(x_norm)
+
+    return [dxdt_norm, dpdt_norm, U]
+
+#Time interval
+t_0 = 0
+t_end_in_s = 2E-11 # 20 ps
+t_end = t_end_in_s * omega_s
+steps = 1000
+
+# Initial conditions [initial_x_norm, initial_p_norm, U]:
+#Plot a 
+ya1 = [0, 0, 1.5]                   #Blue
+ya2 = [-0.1, np.pi, 1.5]            #Yellow
+#Plot b
+yb1 = [-3.5*np.pi, 3, 2.5]          #Blue
+yb2 = [1.5*np.pi, 0, 2.5]        #Yellow
+yb3 = [-3.5*np.pi, 2.25, 2.5]   #Blue dotted
+yb4 = [1.5*np.pi, -1.2, 2.5]        #Yellow dotted
+#Plot 
+yc1 = [4.5, -0.05, 4.2]             #Blue
+yc2 = [3.8, 0.1, 4.2]               #Yellow
+
+# yb4 = [1.5*np.pi, -1.25, 2.5] 
+
+sola1 = solve_ivp(fig5, (t_0, t_end), ya1, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+sola2 = solve_ivp(fig5, (t_0, t_end), ya2, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+
+solb1 = solve_ivp(fig5, (t_0, t_end), yb1, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+solb2 = solve_ivp(fig5, (t_0, t_end), yb2, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+solb3 = solve_ivp(fig5, (t_0, t_end), yb3, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+solb4 = solve_ivp(fig5, (t_0, t_end), yb4, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+
+solc1 = solve_ivp(fig5, (t_0, t_end), yc1, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+solc2 = solve_ivp(fig5, (t_0, t_end), yc2, method='DOP853', 
+                t_eval=np.linspace(t_0, t_end, steps))
+
+t_norm = np.linspace(t_0, t_end, steps) 
+xa1 = sola1.y[0]/ks - (ya1[0]*1E-9) + vs*(t_norm/omega_s)
+xa2 = sola2.y[0]/ks - (ya2[0]*1E-9) + vs*(t_norm/omega_s)
+xb1 = solb1.y[0]/ks - (yb1[0]*1E-9) + vs*(t_norm/omega_s)
+xb2 = solb2.y[0]/ks - (yb2[0]*1E-9) + vs*(t_norm/omega_s)
+xb3 = solb3.y[0]/ks - (yb3[0]*1E-9) + vs*(t_norm/omega_s)
+xb4 = solb4.y[0]/ks - (yb4[0]*1E-9) + vs*(t_norm/omega_s)
+xc1 = solc1.y[0]/ks - (yc1[0]*1E-9) + vs*(t_norm/omega_s)
+xc2 = solc2.y[0]/ks - (yc2[0]*1E-9) + vs*(t_norm/omega_s)
+
+#____________________________________________________________________
+#Plotting altogther Apostolakis Fig 5
+fig, fig5 = plt.subplots(3, 2, layout='constrained', figsize=(6, 9))
+fig5[0, 0].set_title("Phase Trajectory")
+fig5[0, 1].set_title("Electron Trajectory")
+fig5[0, 0].plot(sola1.y[0]/np.pi, sola1.y[1]/np.pi, color='b')
+fig5[0, 0].plot(sola2.y[0]/np.pi, sola2.y[1]/np.pi, color='y')
+fig5[0, 1].plot(t_norm/omega_s*1E12, xa1*1E9, color='b')
+fig5[0, 1].plot(t_norm/omega_s*1E12, xa2*1E9, color='y')
+fig5[0, 0].set_ylim([-1.4, 1.25])
+
+# fig5[1, 0].sharex(fig5[0, 0])
+fig5[1, 0].plot(solb1.y[0]/np.pi, solb1.y[1]/np.pi, color='b')
+fig5[1, 1].plot(t_norm/omega_s*1E12, xb1*1E9, color='b')
+fig5[1, 0].plot(solb2.y[0]/np.pi, solb2.y[1]/np.pi, color='y')
+fig5[1, 1].plot(t_norm/omega_s*1E12, xb2*1E9, color='y')
+fig5[1, 0].set_ylim([-1.4, 1.25])
+
+fig5[1, 0].plot(solb3.y[0]/np.pi, solb3.y[1]/np.pi, color='b', linestyle='dotted')
+fig5[1, 0].plot(solb4.y[0]/np.pi, solb4.y[1]/np.pi, color='y', linestyle='dotted')
+fig5[1, 1].plot(t_norm/omega_s*1E12, xb3*1E9, color='b', linestyle='dotted')
+fig5[1, 1].plot(t_norm/omega_s*1E12, xb4*1E9, color='y', linestyle='dotted')
+
+# fig5[2, 0].sharex(fig5[0, 0])
+fig5[2, 0].plot(solc1.y[0]/np.pi, solc1.y[1]/np.pi, color='b')
+fig5[2, 1].plot(t_norm/omega_s*1E12, xc1*1E9, color='b')
+fig5[2, 0].plot(solc2.y[0]/np.pi, solc2.y[1]/np.pi, color='y')
+fig5[2, 1].plot(t_norm/omega_s*1E12, xc2*1E9, color='y')
+fig5[2, 0].set_ylim([-2.8, 2.25])
+
+#Fixed points (centers and saddles)
+x_centers = []
+p_centers = []
+x_saddles = []
+p_saddles = []
+for m in range(-4, 2):
+    for l in range(-3, 3):
+        x = np.pi/2 + (m*np.pi)
+        p = (-1)**l * np.arcsin(vs/v0) + (l*np.pi)
+
+        if m % 2 == l % 2:
+            x_centers.append(x/np.pi)
+            p_centers.append(p/np.pi)
+        else:
+            x_saddles.append(x/np.pi)
+            p_saddles.append(p/np.pi)
+
+#Labels and axes
+for i in range(3):
+    #Plot fixed points
+    fig5[i, 0].scatter(x_centers, p_centers, color='k', s=10)
+    fig5[i, 0].scatter(x_saddles, p_saddles, color='r', marker='x')
+
+    #LHS ylabels
+    axL = fig5[i, 0]
+    axL.set_xlim([-4.25,2.25])
+    axL.set_ylabel(f"p_norm / pi ")
+
+    #RHS ylabels
+    axR = fig5[i, 1]
+    axR.set_ylabel(f"x (nm)")
+
+#xlabels
+axXL = fig5[2, 0]
+axXL.set_xlabel(f"x_norm / pi ")
+axXR = fig5[2, 1]
+axXR.set_xlabel(f"t (ps) ")
+plt.show()
