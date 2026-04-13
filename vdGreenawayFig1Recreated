@@ -1,0 +1,112 @@
+import numpy as np
+import matplotlib.pyplot as plt 
+from scipy.integrate import solve_ivp
+import time
+from matplotlib import cm
+from matplotlib.image import NonUniformImage
+
+
+start = time.time()
+
+# Constants
+delta_in_meV = 7        # meV
+hbar = 1.05457E-34      # J*s
+d = 12.5E-9             # m
+e = 1.60218E-19         # C
+tau = 250E-15           # s
+D_in_eV = 10            # eV
+vs = 5000               # m/s
+omega_s = 4E11         # rad/sec
+x0 = 0 
+
+# Derived constants
+delta = delta_in_meV * 1.602E-22    # J
+D = D_in_eV * 1.602E-19             # J
+v0 = delta * d / (2*hbar)           # m/s
+ks = omega_s/vs
+
+
+U_range_in_meV = np.linspace(0, 20, 100)   #meV
+U_range = U_range_in_meV * 1.602E-22  # J
+vd_array_norm_across_U = []
+x_array_norm_across_U = []
+p_array_norm_across_U = []
+
+#Initial conditions to set 
+t_0 = 0
+t_end_in_s = 2E-11 # 20 ps
+t_end = t_end_in_s * omega_s
+initial_x = 0
+initial_p = 0
+initial_vd = 0
+steps = 1000
+
+t_eval=np.linspace(t_0, t_end, steps)
+    
+#___________________________Begin loop_________________________________________    
+y_ic1 = [initial_x, initial_p, initial_vd] 
+
+for U in U_range:
+    def system2(t_norm, n): 
+        x_norm, p_norm, vd = n 
+        dxdt_norm = (v0 / vs) * np.sin(p_norm) - 1
+        dpdt_norm = U*d / (hbar * vs) * np.cos(x_norm)
+        v_d_int_norm = 1/(omega_s*tau) * np.sin(p_norm) * np.exp(-t_norm/(omega_s*tau))
+
+        return [dxdt_norm, dpdt_norm, v_d_int_norm]
+
+    sol = solve_ivp(system2, (t_0, t_end), y_ic1, method='DOP853', t_eval=t_eval)
+
+    x_array_norm_across_U.append(np.average(sol.y[0]))
+    p_array_norm_across_U.append(np.average(sol.y[1]))
+    vd_array_norm_across_U.append(np.average(sol.y[2]))
+
+
+# PLOTTING -------------------------------------------------------------
+
+plt.plot(U_range_in_meV, x_array_norm_across_U, label='Numerical solution', color='r')
+plt.xlabel("U (meV)")
+plt.ylabel("x (normalised)")
+plt.title("Position x")
+plt.grid(True)
+plt.show()
+
+plt.plot(U_range_in_meV, p_array_norm_across_U, label='Numerical solution', color='r')
+plt.xlabel("U (meV)")
+plt.ylabel("p (normalised)")
+plt.title("Momentum p")
+plt.grid(True)
+plt.show()
+
+vd_norm_array = np.array(vd_array_norm_across_U)
+vd_dim = vd_norm_array*v0
+
+plt.plot(U_range_in_meV, vd_dim, label='Numerical solution', color='r')
+plt.xlabel("U (meV)")
+plt.ylabel("v_d (m/s)")
+plt.title("Drift Velocity")
+plt.grid(True)
+plt.show()
+
+
+#Against time
+plt.plot(t_eval/omega_s*1E12, (sol.y[0]/ks - x0 + vs*(t_eval/omega_s))*1E9, label='Numerical solution', color='r')
+plt.xlabel("time (ps)")
+plt.ylabel("x (nm)")
+plt.title("Position in x against time (for U = 6 meV)")
+plt.grid(True)
+plt.show()
+
+plt.plot(t_eval/omega_s*1E12, sol.y[1]*hbar/d, label='Numerical solution', color='r')
+plt.xlabel("time (ps)")
+plt.ylabel("p (N*s)")
+plt.title("Momentum against time (for U = 20 meV)")
+plt.grid(True)
+plt.show()
+
+
+
+end = time.time()
+
+print("Run time =", end - start, "seconds")
+
