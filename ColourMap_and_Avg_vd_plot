@@ -1,0 +1,116 @@
+import numpy as np
+import matplotlib.pyplot as plt 
+from scipy.integrate import solve_ivp
+import time
+from matplotlib import cm
+from matplotlib.image import NonUniformImage
+
+
+start = time.time()
+
+# Constants
+delta_in_meV = 7        # meV    CHANGE MINIBAND WIDTH HERE
+hbar = 1.05457E-34      # J*s
+d = 12.5E-9             # m
+e = 1.60218E-19         # C
+tau = 250E-15           # s
+D_in_eV = 10            # eV
+vs = 5000               # m/s
+omega_s = 4E11          # rad/sec
+
+
+# Derived constants
+delta = delta_in_meV * 1.602E-22    # J
+D = D_in_eV * 1.602E-19             # J
+v0 = delta * d / (2*hbar)           # m/s
+ks = omega_s/vs
+lambda_s = 2*np.pi/ks
+
+
+U_range_in_meV = np.linspace(0, 55, 20)   #(meV) CHANGE FOR RESOLUTION IN U
+U_range = U_range_in_meV * 1.602E-22  # J
+vd_array_norm_across_U = []
+x_array_norm_across_U = []
+p_array_norm_across_U = []
+vd_array = []
+vd_array_T = []
+
+#Initial conditions to set 
+t_0 = 0
+t_end_in_s = 2E-11 # 20 ps 
+# t_end_in_s = 2E-9 # 2 ns 
+t_end = t_end_in_s * omega_s
+
+initial_x_realdim = np.linspace(0, lambda_s, 100) # CHANGE FOR RESOLUTION IN x0
+initial_x = initial_x_realdim*ks
+
+initial_p = 0
+initial_vd = 0
+steps = 1000 
+t_eval=np.linspace(t_0, t_end, steps)
+
+    
+#___________________________Begin loops_________________________________________    
+
+for x0 in initial_x:
+
+    y_ic1 = [x0, initial_p, initial_vd]
+    vd_temporary = []
+
+    for U in U_range:
+        def system2(t_norm, n): 
+            x_norm, p_norm, vd = n 
+            dxdt_norm = (v0 / vs) * np.sin(p_norm) - 1
+            dpdt_norm = U*d / (hbar * vs) * np.cos(x_norm)
+            v_d_int_norm = 1/(omega_s*tau) * np.sin(p_norm) * np.exp(-t_norm/(omega_s*tau))
+
+            return [dxdt_norm, dpdt_norm, v_d_int_norm]
+
+        sol = solve_ivp(system2, (t_0, t_end), y_ic1, method='DOP853', t_eval=t_eval)
+
+        vd_temporary.append(np.average(sol.y[2]))
+
+    vd_array_T.append(vd_temporary)
+
+
+vd_array = np.array(vd_array_T).T.tolist()
+
+# Make vd_array dimensioned 
+t_norm = np.linspace(t_0, t_end, steps) 
+
+vd_norm_array = np.array(vd_array)
+vd_dim = vd_norm_array*v0/10000
+
+
+#_______________________________________________________________________
+# Color map plot 
+
+fig, ax = plt.subplots()
+
+pcm = ax.pcolormesh(initial_x_realdim, U_range_in_meV, vd_dim, cmap='jet', shading='auto')
+
+fig.colorbar(pcm, ax=ax, label='Drift Velocity (10^2 m/s)')
+ax.set_title(f'Electron Drift Velocity of delta = {delta_in_meV} meV')
+ax.set_xlabel('x_0')
+ax.set_ylabel('U (meV)')
+
+plt.show()
+
+# ---------------------------------------------------------------------
+# Average vd 
+average_vd_across_ic = 100*np.mean(vd_dim, axis=1)
+
+plt.plot(U_range_in_meV, average_vd_across_ic)
+plt.xlabel("U (meV)")
+plt.ylabel("v_d (10^2 m/s)")
+plt.title(f"Average Drift Velocity (miniband width = {delta_in_meV} meV)")
+plt.grid(True)
+plt.show()
+
+
+
+end = time.time()
+
+print("Run time =", end - start, "seconds")
+
+
