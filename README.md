@@ -1,2 +1,3 @@
 # MPhysProject
-High Frequency Charge Transport in Semiconductor Superlattices
+High Frequency Charge Transport in a Semiconductor Superlattice using Coherent Acoustic Phonons
+
